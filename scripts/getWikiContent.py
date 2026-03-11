@@ -1,6 +1,7 @@
 import requests
 import os
 from bs4 import BeautifulSoup
+import bz2
 
 
 
@@ -13,7 +14,6 @@ def main():
     soup = BeautifulSoup(content, "html.parser")
     atags = soup.find_all("a")
     otherTags = str(soup.find_all("pre")).split("\n")
-    print(otherTags[3])
     SHA256s = atags[1].get("href")
     shaLink = url + SHA256s
 
@@ -30,6 +30,8 @@ def main():
             path = os.path.join("wikidump", href)
             downloadLink(link,path,fileSize=fileSizes[i])
             break
+
+
 
 def getFileBytes(lines: list[str]) -> list[int]:
     numbers = []
@@ -61,9 +63,12 @@ def downloadLink(link: str, filepath: str, fileSize: int):
                 bytesDownloaded += chunkSize
                 f.write(chunk)
                 showProgress(bytesDownloaded,fileSize)
+
+
+def unzipFile(filepath: str):
+    with bz2.open(filepath, 'rb') as f_in:
+        with open('decompressed.txt', 'wb') as f_out:
+            f_out.write(f_in.read())
         
-
-
-
 if __name__ == "__main__":
     main()
