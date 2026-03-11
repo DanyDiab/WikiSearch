@@ -16,26 +16,52 @@ def main():
     print(otherTags[3])
     SHA256s = atags[1].get("href")
     shaLink = url + SHA256s
+
+    fileSizes = getFileBytes(otherTags[3:-1])
     
     os.makedirs("wikidump", exist_ok=True)
     path = os.path.join("wikidump", "SHASUMS.txt")
-    downloadLink(shaLink,path)
-    return
-    for tag in atags[2:]:
+    
+    downloadLink(shaLink,path, 1)
+    for i,tag in enumerate(atags[2:]):
         href = tag.get("href")
         if href.endswith(".bz2"):
             link = url + href
-            path = os.path.join("wikidump", href + ".bz2")
-            downloadLink(link,path)
+            path = os.path.join("wikidump", href)
+            downloadLink(link,path,fileSize=fileSizes[i])
             break
 
+def getFileBytes(lines: list[str]) -> list[int]:
+    numbers = []
+    for line in lines:
+        num = []
+        for c in line[::-1].strip():
+            if not c.isdigit():
+                break
+            
+            num.append(c)
+        number = int("".join(num[::-1]))
+        numbers.append(number)
 
-def downloadLink(link: str, filepath: str):
+    return numbers
+    
+
+def showProgress(curr, totalSize):
+    progress = (curr / totalSize) * 100
+    print(f"{progress:.2f}%",end="\r",flush=True)
+
+
+
+def downloadLink(link: str, filepath: str, fileSize: int):
+    bytesDownloaded = 0
+    chunkSize = 8192
     with requests.get(link, stream=True) as r:
         with open(filepath, "wb") as f:
-            for chunk in r.iter_content(chunk_size=8192):
+            for chunk in r.iter_content(chunk_size=chunkSize):
+                bytesDownloaded += chunkSize
                 f.write(chunk)
-
+                showProgress(bytesDownloaded,fileSize)
+        
 
 
 
