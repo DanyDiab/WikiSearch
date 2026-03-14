@@ -1,1 +1,3 @@
 wikidump/
+*.pkl
+__pycache__/

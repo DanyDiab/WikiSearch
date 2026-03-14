@@ -1,64 +1,52 @@
 import os
 import bz2
 import time
-import hashlib
 import requests
 
 from tqdm import tqdm
 from bs4 import BeautifulSoup, Tag
 
 TIMEOUT = 60
-CWD = os.getcwd()
 CHUKN_SIZE = 8 * 1024 * 1024
+
+URL = "https://dumps.wikimedia.org/other/mediawiki_content_current/enwiki/2026-03-01/xml/bzip2/"
+
+CWD = os.getcwd()
 DUMP_DIR = os.path.join(CWD, "wikidump")
-
-
-def main():
-    url = "https://dumps.wikimedia.org/other/mediawiki_content_current/enwiki/2026-03-01/xml/bzip2/"
-    downloadFiles(url)
+os.makedirs(DUMP_DIR, exist_ok=True)
 
 
 
-def downloadFiles(url: str):
-    response = requests.get(url, stream=True, timeout=TIMEOUT)
-
-    content = response.text
-
-    soup = BeautifulSoup(content, "html.parser")
-    atags = soup.find_all("a")
-
-    os.makedirs(DUMP_DIR, exist_ok=True)
-    otherTags = str(soup.find_all("pre")).split("\n")
-    fileSizes = getFileBytesSize(otherTags[3:-1])
-
-    shaMap = downloadSHASums(url,atags)
-
-    downloadBZ2s(
-        url=url,
-        atags=atags,
-        fileSizes=fileSizes,
-        shaMap=shaMap
+def get_page_content() -> BeautifulSoup:
+    return BeautifulSoup(
+        requests.get(URL, stream=True, timeout=TIMEOUT).text,
+        features="html.parser"
     )
 
 
 
-def downloadBZ2s(url: str, atags: list[Tag], fileSizes: list[int], shaMap: dict[str:str]):
-    for i,tag in enumerate(atags[2:]):
-        href = tag.get("href")
-        if href.endswith(".bz2"):
-            link = url + href
-            path = os.path.join(DUMP_DIR, href)
-            sha = shaMap.get(href)
-            downloadLink(link,path,fileSize=fileSizes[i],expectedSHA=sha)
-            break
+def get_page_aspect(soup: BeautifulSoup, tag: str):
+    return soup.find_all(tag)
 
 
 
-def downloadSHASums(url: str, atags: list[Tag]) -> dict[str:str]:
-    SHA256s = atags[1].get("href")
-    shaLink = url + SHA256s
+def downloadBZ2(bz2_file: Tag, fileSize: int, filepath: str):
+    href = bz2_file.get("href")
+    if href.endswith(".bz2"):
+        link = URL + href
+        downloadLink(
+            link,
+            filepath,
+            fileSize=fileSize
+        )
+        return
+
+
+
+def downloadSHASums(sha_file: Tag) -> dict[str, str]:
+    shaLink = URL + sha_file
     path = os.path.join(DUMP_DIR, "SHASUMS.txt")
-    downloadLink(shaLink,path)
+    downloadLink(shaLink, path)
 
     shaMap = parseShaTxt(path)
     return shaMap
@@ -128,11 +116,8 @@ def formatElapsedTime(seconds: float) -> str:
 
 
 
-def downloadLink(link: str, filepath: str, fileSize: int = None, expectedSHA: str = None):
+def downloadLink(link: str, filepath: str, fileSize: int = None):
     bytesDownloaded = 0
-    isBZ2 = True
-    if(fileSize is None or expectedSHA is None):
-        isBZ2 = False
     startTime = time.perf_counter()
     with requests.get(link, stream=True, timeout=TIMEOUT) as r:
         with open(filepath, "wb") as f:
@@ -142,22 +127,12 @@ def downloadLink(link: str, filepath: str, fileSize: int = None, expectedSHA: st
 
                 bytesDownloaded += len(chunk)
                 f.write(chunk)
-                if isBZ2:
+                if fileSize is not None:
                     showProgress(bytesDownloaded, fileSize)
 
     elapsedTime = time.perf_counter() - startTime
     print(f"Download took {formatElapsedTime(elapsedTime)}")
-    if isBZ2:
-        print("Download Complete")
-        shasMatch = validateSHA256(pathToCheck=filepath,expectedSHA=expectedSHA)
-        print("do SHA's Match? " + str(shasMatch))
-        if not shasMatch:
-            return
-        print("Now UnZipping File")
-        unzipStartTime = time.perf_counter()
-        unzipFile(filepath)
-        unzipElapsedTime = time.perf_counter() - unzipStartTime
-        print(f"Unzip took {formatElapsedTime(unzipElapsedTime)}")
+        
 
 
 
@@ -177,7 +152,3 @@ def unzipFile(filepathToDecompress: str):
         with open(fileName, 'wb') as f_out:
             f_out.write(f_in.read())
 
-
-
-if __name__ == "__main__":
-    main()
