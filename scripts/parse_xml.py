@@ -130,7 +130,7 @@ def read_xml_file(
             if result:
                 doc_counter += 1
 
-            if doc_counter % BLOCK_SIZE:
+            if doc_counter % BLOCK_SIZE == 0:
                 write_block(inverted_index)
 
     if inverted_index:

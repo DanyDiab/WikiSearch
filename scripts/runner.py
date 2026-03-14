@@ -64,7 +64,7 @@ def main():
         os.remove(os.path.join(DUMP_DIR, "download.xml"))
         os.remove(os.path.join(DUMP_DIR, "download.xml.bz2"))
 
-        if i % 3 == 0:
+        if i % 3 == 0 and i != 0:
             with open(f"doc_map_{i}.pkl", "wb") as p:
                 pickle.dump(doc_map, p)
             doc_map.clear()
