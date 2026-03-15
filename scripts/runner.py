@@ -70,15 +70,24 @@ def main():
             doc_map.clear()
 
             with open(f"link_graph_{i}.pkl", "wb") as p:
-                pickle.dump(doc_map, p)
+                pickle.dump(link_graph, p)
             link_graph.clear()
 
             with open(f"document_lengths_{i}.pkl", "wb") as p:
-                pickle.dump(doc_map, p)
+                pickle.dump(document_lengths, p)
             document_lengths.clear()
 
+    with open(f"doc_map_{10}.pkl", "wb") as p:
+        pickle.dump(doc_map, p)
+    doc_map.clear()
 
+    with open(f"link_graph_{10}.pkl", "wb") as p:
+        pickle.dump(link_graph, p)
+    link_graph.clear()
 
+    with open(f"document_lengths_{10}.pkl", "wb") as p:
+        pickle.dump(document_lengths, p)
+    document_lengths.clear()
 
 if __name__ == "__main__":
     main()

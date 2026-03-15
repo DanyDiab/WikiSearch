@@ -25,8 +25,6 @@ import pickle
 import xml.etree.ElementTree as ET
 
 from collections import Counter
-from dataclasses import dataclass
-from typing import Callable
 
 block_id = 0
 BLOCK_SIZE = 50_000
@@ -130,7 +128,7 @@ def read_xml_file(
             if result:
                 doc_counter += 1
 
-            if doc_counter % BLOCK_SIZE == 0:
+            if result and doc_counter % BLOCK_SIZE == 0:
                 write_block(inverted_index)
 
     if inverted_index:
