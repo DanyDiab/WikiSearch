@@ -72,17 +72,12 @@ def insertAllValues(table: str, picklePath: str):
 
     db.connection.commit()
 
-drop_Table(docLengthTable)
-create_table(docLengthTable)
+# NOTE
+# When Building document table, the doc ID is 2nd
+# When Building Doc Length table, the doc ID is 1st
 
-picklePath = PicklePaths / "document_lengths.pkl"
-insertAllValues(docLengthTable,picklePath)
-
-# res = selectValuesFromID(docLengthTable, 27097632)
-
-
-# for val in res:
-#     print(val)
+for val in res:
+    print(val)
 
 
     # 470
