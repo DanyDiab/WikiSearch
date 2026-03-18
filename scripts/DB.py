@@ -2,17 +2,20 @@ import json
 import pickle
 import sqlite3
 from enum import IntEnum
+import os
+from pathlib import Path
 
-wikiDB = "wiki.db"
+baseDIR = Path(__file__).parent.parent
+DATABASE_DIR = baseDIR / "databases"
+wikiDBPath = DATABASE_DIR / "wiki.db"
+PicklePaths =  baseDIR / "wikidump" / "data"
+
 documentsTable = "DOCUMENTS"
+docLengthTable = "DOC_LENGTHS"
+linkTable = "LINKS"
 
-
-class QueryType(IntEnum):
-    GET = 1,
-    COMMIT = 2,
-
-def extractPickle():
-    with open("/home/dany/Projects/wikisearch/WikiSearch/data/doc_map.pkl", "rb") as p:
+def extractPickle(filePath: str):
+    with open(filePath, "rb") as p:
         return pickle.load(p)
 
 class Database:
@@ -21,65 +24,65 @@ class Database:
         self.cursor = self.connection.cursor()
 
     def getConnection(self):
-        return sqlite3.connect(wikiDB)
+        DATABASE_DIR.mkdir(parents=True, exist_ok=True)
+        return sqlite3.connect(wikiDBPath)
 
     def executeQuery(self, query, params=()):
         res = self.cursor.execute(query, params)
         return res.fetchall()
 
-
 db = Database()
 
+def create_table(name: str):
+    query = f"CREATE TABLE IF NOT EXISTS {name} (DOC_ID INTEGER NOT NULL, WORD_COUNT INTEGER NOT NULL)"
+    db.executeQuery(query)
 
-createTable = f"""
-CREATE TABLE IF NOT EXISTS {documentsTable}(
-    DOC_ID INTEGER NOT NULL,
-    TITLE TEXT
-)
-"""
+def drop_Table(name: str):
+    query = f"DROP TABLE IF EXISTS {name}"
+    db.executeQuery(query)
 
-insert_query = f"""
-INSERT INTO {documentsTable} (
-    DOC_ID,
-    TITLE
-) VALUES (?, ?)
-"""
-
-
-dropTable = f"""
-DROP TABLE IF EXISTS {documentsTable} 
-"""
-
-
-selectQuery = f"""
-SELECT * FROM {documentsTable} WHERE TITLE LIKE ?
-"""
-
-# db.executeQuery(query=createTable)
-# db.connection.commit()
-
-
-def selectValues(search):
+def selectValuesFromTitle(table: str, search: str):
+    query = f"""
+    SELECT * FROM {table} WHERE TITLE LIKE ?
+    """
     search_term = f"%{search}%"
-    return db.executeQuery(selectQuery,params=(search_term,))
-    # print(res)
+    return db.executeQuery(query,params=(search_term,))
 
+def selectValuesFromID(table: str, id: int):
+    query = f"SELECT * FROM {table} WHERE DOC_ID == ?"
+    return db.executeQuery(query=query, params=(id,))
 
-def insertAllValues():
-    data = extractPickle()
+def showEntireTable(table: str):
+    query = f"SELECT * FROM {table}"
+    return db.executeQuery(query=query)
 
+def insertAllValues(table: str, picklePath: str):
+    insert_query = f"""INSERT INTO {table} (
+        DOC_ID,
+        WORD_COUNT
+    ) VALUES (?, ?)"""
+
+    chunkSize = 100_000
+    data = extractPickle(picklePath)
     for i, (key, value) in enumerate(data.items()):
-        db.executeQuery(query=insert_query, params=(value, key))
-        if i % 100_000 == 0 and i != 0:
+        db.executeQuery(query=insert_query, params=(key, value))
+        if i % chunkSize == 0 and i != 0:
             db.connection.commit()
             print(f"Commited {i}")
 
     db.connection.commit()
 
+drop_Table(docLengthTable)
+create_table(docLengthTable)
 
-# insertAllValues()
+picklePath = PicklePaths / "document_lengths.pkl"
+insertAllValues(docLengthTable,picklePath)
 
-values = selectValues("Dany")
+# res = selectValuesFromID(docLengthTable, 27097632)
 
-for val in values:
-    print(val)
+
+# for val in res:
+#     print(val)
+
+
+    # 470
