@@ -14,6 +14,7 @@ documentsTable = "DOCUMENTS"
 docLengthTable = "DOC_LENGTHS"
 linkTable = "LINKS"
 
+
 def extractPickle(filePath: str):
     with open(filePath, "rb") as p:
         return pickle.load(p)
@@ -33,13 +34,15 @@ class Database:
 
 db = Database()
 
-def create_table(name: str):
-    query = f"CREATE TABLE IF NOT EXISTS {name} (DOC_ID INTEGER NOT NULL, WORD_COUNT INTEGER NOT NULL)"
+def create_table(name: str, fields: str):
+    query = f"CREATE TABLE IF NOT EXISTS {name} {fields} "
     db.executeQuery(query)
 
 def drop_Table(name: str):
     query = f"DROP TABLE IF EXISTS {name}"
     db.executeQuery(query)
+    db.connection.commit()
+    print(f"Dropped {name}")
 
 def selectValuesFromTitle(table: str, search: str):
     query = f"""
@@ -55,6 +58,11 @@ def selectValuesFromID(table: str, id: int):
 def showEntireTable(table: str):
     query = f"SELECT * FROM {table}"
     return db.executeQuery(query=query)
+
+def showTablesInDatabase():
+    query = "SELECT name FROM sqlite_master WHERE type='table'"
+    return db.executeQuery(query)
+
 
 def insertAllValues(table: str, picklePath: str):
     insert_query = f"""INSERT INTO {table} (
@@ -72,12 +80,34 @@ def insertAllValues(table: str, picklePath: str):
 
     db.connection.commit()
 
+# this clears the database, like garbage collection, use after dropping tables or other big changes removing elements
+def vacuumDatabase():
+    query = "VACUUM"
+    db.executeQuery(query)
+    print("Database vacuumed")
+
+
+def createTablesAndInsertValues():
+    create_table(documentsTable, "(TITLE TEXT, DOC_ID INTEGER PRIMARY KEY NOT NULL)")
+    docMapPickle = PicklePaths / "doc_map.pkl"
+    insertAllValues(documentsTable,docMapPickle)
+
+    create_table(docLengthTable, "(DOC_ID INTEGER PRIMARY KEY NOT NULL, WORD_COUNT INTEGER NOT NULL)")
+    docLengthPickle = PicklePaths / "document_lengths.pkl"
+    insertAllValues(docLengthTable,docLengthPickle)
+
+    create_table(linkTable, "SOURCE_DOC_ID INTEGER NOT NULL, TARGET_DOC_ID INTEGER NOT NULL, PRIMARY KEY (SOURCE_DOC_ID, TARGET_DOC_ID)")
+    linkPickle = PicklePaths / "link_graph.pkl"
+
 # NOTE
 # When Building document table, the doc ID is 2nd
 # When Building Doc Length table, the doc ID is 1st
 
-for val in res:
-    print(val)
+
+
+
+
+
 
 
     # 470
