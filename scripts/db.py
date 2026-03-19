@@ -197,7 +197,7 @@ if __name__ == '__main__':
     # files = sorted(os.listdir(PICKLE_FILES))
     db = Database()
     
-    print(db.showTablesInDatabase())
+    print(db.executeQuery("SELECT * FROM TERMS LIMIT 100"))
     # for f in files:
     #     print(f"On file: {f}")
     #     file_path = os.path.join(PICKLE_FILES, f)

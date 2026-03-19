@@ -12,3 +12,4 @@ link_graph_dump/
 doc_length_dump/
 block_dir/
 data/
+venv/
