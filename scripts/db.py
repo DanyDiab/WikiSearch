@@ -8,6 +8,8 @@ DATABASE_DIR = baseDIR / "database"
 WIKI_DB = DATABASE_DIR / "wiki.db"
 PICKLE_FILES =  baseDIR / "wikidump" / "data"
 
+
+
 DOCUMENTS_TABLE = "DOCUMENTS"
 DOC_LENGTH_TABLE = "DOC_LENGTHS"
 LINKS_TABLE = "LINKS"
@@ -16,7 +18,7 @@ LINKS_TABLE = "LINKS"
 def open_pickle(filePath: str):
     with open(filePath, "rb") as p:
         return pickle.load(p)
-
+ 
 
 
 class Database:
@@ -63,98 +65,56 @@ class Database:
         query = f"DROP TABLE IF EXISTS {table_name}"
         self.executeQuery(query)
         self.commit()
-
-
-
-# def selectValuesFromTitle(table: str, search: str):
-#     query = f"""
-#     SELECT * FROM {table} WHERE TITLE LIKE ?
-#     """
-#     search_term = f"%{search}%"
-#     return db.executeQuery(query,params=(search_term,))
-
-# def selectValuesFromID(table: str, id: int):
-#     query = f"SELECT * FROM {table} WHERE DOC_ID == ?"
-#     return db.executeQuery(query=query, params=(id,))
-
-# def showEntireTable(table: str):
-#     query = f"SELECT * FROM {table}"
-#     return db.executeQuery(query=query)
-
-# def showTablesInDatabase():
-#     query = "SELECT name FROM sqlite_master WHERE type='table'"
-#     return db.executeQuery(query)
-
-
-# def insertAllValues(table: str, picklePath: str, fields: tuple):
-#     insert_query = f"""INSERT INTO {table} (
-#         {fields[0]},
-#         {fields[1]}
-#     ) VALUES (?, ?)"""
-
-#     chunkSize = 100_000
-#     data = extractPickle(picklePath)
-#     for i, (key, value) in enumerate(data.items()):
-#         db.executeQuery(query=insert_query, params=(key, value))
-#         if i % chunkSize == 0 and i != 0:
-#             db.connection.commit()
-#             print(f"Commited {i}\r", end="")
-#     db.connection.commit()
-#     print(f"insert complete into {table}")
-
-
-# def insertAllValuesArray(table: str, picklePath: str, fields: tuple):
-#     insert_query = f"""INSERT INTO {table} (
-#     {fields[0]},
-#     {fields[1]}
-#     ) VALUES (?, ?)"""
-
-#     chunkSize = 100_000
-#     data = extractPickle(picklePath)
-#     counter = 0
-#     for key, values in data.items():
-#         for value in values:
-#             db.executeQuery(query=insert_query, params=(key, value))
-#             if counter % chunkSize == 0 and counter != 0:
-#                 db.connection.commit()
-#                 print(f"Commited {counter}\r", end="")
-#             counter+=1
     
-#     db.connection.commit()
-#     print(f"insert complete into {table}")
 
+    def combineDataBaseTables(self):
+        db.executeQuery(f"ATTACH DATABASE '{WIKI_DB}' AS dany_db")
 
-# # this clears the database, like garbage collection, use after dropping tables or other big changes removing elements
-# def vacuumDatabase():
-#     query = "VACUUM"
-#     db.executeQuery(query)
-#     print("Database vacuumed")
+        db.executeQuery("PRAGMA synchronous = OFF")
+        db.executeQuery("PRAGMA journal_mode = MEMORY")
+        db.executeQuery("PRAGMA cache_size = 100000")
 
-# def dropAllTables():
-#     drop_Table(documentsTable)
-#     drop_Table(docLengthTable)
-#     drop_Table(linkTable)
-#     vacuumDatabase()
+        self.drop_table(DOCUMENTS_TABLE)
+        self.drop_table(DOC_LENGTH_TABLE)
+        self.drop_table(LINKS_TABLE)
 
-# def createTablesAndInsertValues():
-#     docID = "DOC_ID"
-#     title = "TITLE"
-#     wordCount = "WORD_COUNT"
-#     sourceDocId = "SOURCE_DOC_ID"
-#     targetDocId = "TARGET_DOC_ID"
-#     create_table(documentsTable, f"{title} TEXT, {docID} INTEGER PRIMARY KEY NOT NULL")
-#     docMapPickle = PicklePaths / "doc_map.pkl"
-#     insertAllValues(documentsTable,docMapPickle, (title,docID))
+        Docquery = f"CREATE TABLE {DOCUMENTS_TABLE} AS SELECT * FROM dany_db.{DOCUMENTS_TABLE}" 
+        DocLenQuery = f"CREATE TABLE {DOC_LENGTH_TABLE} AS SELECT * FROM dany_db.{DOC_LENGTH_TABLE}" 
+        LinksQuery = f"CREATE TABLE {LINKS_TABLE} AS SELECT * FROM dany_db.{LINKS_TABLE}" 
+
+        db.executeQuery(query=Docquery)
+        db.executeQuery(query=DocLenQuery)
+        db.executeQuery(query=LinksQuery)
+        
+        db.connection.commit()
+        db.executeQuery("DETACH DATABASE dany_db")
+
+    def selectValuesFromTitle(table: str, search: str):
+        query = f"""
+        SELECT * FROM {table} WHERE TITLE LIKE ?
+        """
+        search_term = f"%{search}%"
+        return db.executeQuery(query,params=(search_term,))
+
+    def selectValuesFromID(table: str, id: int):
+        query = f"SELECT * FROM {table} WHERE DOC_ID == ?"
+        return db.executeQuery(query=query, params=(id,))
+
+    def showTablesInDatabase(self):
+        query = "SELECT name FROM sqlite_master WHERE type='table'"
+        return db.executeQuery(query)
     
-#     create_table(docLengthTable, f"{docID} INTEGER PRIMARY KEY NOT NULL, {wordCount} INTEGER NOT NULL")
-#     docLengthPickle = PicklePaths / "document_lengths.pkl"
-#     insertAllValues(docLengthTable,docLengthPickle, (docID,wordCount))
+# this clears the database, like garbage collection, use after dropping tables or other big changes removing elements
+    def vacuumDatabase(self):
+        query = "VACUUM"
+        db.executeQuery(query)
+        print("Database vacuumed")
 
-#     create_table(linkTable, f"{sourceDocId} INTEGER NOT NULL, {targetDocId} INTEGER NOT NULL, PRIMARY KEY ({sourceDocId}, {targetDocId})")
-#     linkPickle = PicklePaths / "link_graph.pkl"
-#     insertAllValuesArray(linkTable,linkPickle, (sourceDocId, targetDocId))
-
-
+    def dropAllTables(self):
+        self.drop_table(DOCUMENTS_TABLE)
+        self.drop_table(DOC_LENGTH_TABLE)
+        self.drop_table(LINKS_TABLE)
+        self.vacuumDatabase()
 
 def push_doc_map_into_db(db: Database, file_path: str):
     data = open_pickle(file_path)
@@ -234,16 +194,17 @@ def push_link_graph_to_db(db: Database, file_path: str):
 
 
 if __name__ == '__main__':
-    files = sorted(os.listdir(PICKLE_FILES))
+    # files = sorted(os.listdir(PICKLE_FILES))
     db = Database()
+    
+    print(db.showTablesInDatabase())
+    # for f in files:
+    #     print(f"On file: {f}")
+    #     file_path = os.path.join(PICKLE_FILES, f)
 
-    for f in files:
-        print(f"On file: {f}")
-        file_path = os.path.join(PICKLE_FILES, f)
-
-        if 'doc_map' in f:
-            push_doc_map_into_db(db, file_path)
-        elif 'lengths' in f:
-            push_doc_lengths_into_db(db, file_path)
-        else:
-            push_link_graph_to_db(db, file_path)
+    #     if 'doc_map' in f:
+    #         push_doc_map_into_db(db, file_path)
+    #     elif 'lengths' in f:
+    #         push_doc_lengths_into_db(db, file_path)
+    #     else:
+    #         push_link_graph_to_db(db, file_path)

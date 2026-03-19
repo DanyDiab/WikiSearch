@@ -1,5 +1,5 @@
 wikidump/
-<<<<<<< Updated upstream
+databases/
 *.pkl
 __pycache__/
 *.zip
@@ -12,4 +12,3 @@ link_graph_dump/
 doc_length_dump/
 block_dir/
 data/
->>>>>>> Stashed changes
