@@ -93,48 +93,48 @@ if __name__ == '__main__':
     ).fetchall()
     print(res)
     print(len(res))
-    # cursor.execute("PRAGMA journal_mode=WAL")
-    # cursor.execute("PRAGMA synchronous=NORMAL")
-    # cursor.execute("PRAGMA temp_store=MEMORY")
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA synchronous=NORMAL")
+    cursor.execute("PRAGMA temp_store=MEMORY")
 
-    # drop_table(cursor, "TERMS")
-    # drop_table(cursor, "INVERTED_INDEX")
+    drop_table(cursor, "TERMS")
+    drop_table(cursor, "INVERTED_INDEX")
 
-    # insert_query(cursor, CRETE_TERMS_TABLE)
-    # insert_query(cursor, CREATE_INVERTED_INDEX_TABLE)
-    # connection.commit()
+    insert_query(cursor, CRETE_TERMS_TABLE)
+    insert_query(cursor, CREATE_INVERTED_INDEX_TABLE)
+    connection.commit()
 
-    # files = sorted(os.listdir(BLOCK_DIR))
-    # term_id_cache = {}
-    # for i, f in enumerate(files):
-    #     print(f"On file {i + 1}/{len(files)}")
-    #     data = open_pickle(os.path.join(BLOCK_DIR, f))
+    files = sorted(os.listdir(BLOCK_DIR))
+    term_id_cache = {}
+    for i, f in enumerate(files):
+        print(f"On file {i + 1}/{len(files)}")
+        data = open_pickle(os.path.join(BLOCK_DIR, f))
 
-    #     # Bulk insert unseen terms first; SQLite ignores terms that already exist.
-    #     new_terms = [(term,) for term in data if term not in term_id_cache]
-    #     if new_terms:
-    #         cursor.executemany(INSERT_TERM_QUERY, new_terms)
-    #         connection.commit()
+        # Bulk insert unseen terms first; SQLite ignores terms that already exist.
+        new_terms = [(term,) for term in data if term not in term_id_cache]
+        if new_terms:
+            cursor.executemany(INSERT_TERM_QUERY, new_terms)
+            connection.commit()
 
-    #     postings_batch = []
-    #     for term in data:
-    #         if term in term_id_cache:
-    #             term_id = term_id_cache[term]
-    #         else:
-    #             res = fetch_query(cursor, SELECT_TERM_ID, (term, ))
-    #             term_id = res[0][0]
-    #             term_id_cache[term] = term_id
+        postings_batch = []
+        for term in data:
+            if term in term_id_cache:
+                term_id = term_id_cache[term]
+            else:
+                res = fetch_query(cursor, SELECT_TERM_ID, (term, ))
+                term_id = res[0][0]
+                term_id_cache[term] = term_id
 
-    #         for (doc_id, word_freq) in data[term]:
-    #             postings_batch.append((term_id, doc_id, word_freq))
+            for (doc_id, word_freq) in data[term]:
+                postings_batch.append((term_id, doc_id, word_freq))
 
-    #     if postings_batch:
-    #         cursor.executemany(INSERT_INVERTED_INDEX, postings_batch)
-    #     connection.commit()
-    #     del data
-    #     gc.collect()
+        if postings_batch:
+            cursor.executemany(INSERT_INVERTED_INDEX, postings_batch)
+        connection.commit()
+        del data
+        gc.collect()
 
-    # cursor.execute("CREATE INDEX IF NOT EXISTS idx_terms_term ON TERMS(term)")
-    # cursor.execute("CREATE INDEX IF NOT EXISTS idx_inverted_term_doc ON INVERTED_INDEX(term_id, doc_id)")
-    # connection.commit()
-    # connection.close()
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_terms_term ON TERMS(term)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_inverted_term_doc ON INVERTED_INDEX(term_id, doc_id)")
+    connection.commit()
+    connection.close()
