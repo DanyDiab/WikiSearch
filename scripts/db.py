@@ -13,6 +13,8 @@ PICKLE_FILES =  baseDIR / "wikidump" / "data"
 DOCUMENTS_TABLE = "DOCUMENTS"
 DOC_LENGTH_TABLE = "DOC_LENGTHS"
 LINKS_TABLE = "LINKS"
+INVERTED_INDEX_TABLE = "INVERTED_INDEX"
+TERMS_TABLE = "TERMS"
 
 
 def open_pickle(filePath: str):
@@ -197,7 +199,11 @@ if __name__ == '__main__':
     # files = sorted(os.listdir(PICKLE_FILES))
     db = Database()
     
+<<<<<<< Updated upstream
     print(db.showTablesInDatabase())
+=======
+    print(db.executeQuery(f"SELECT * FROM {INVERTED_INDEX_TABLE} LIMIT 100"))
+>>>>>>> Stashed changes
     # for f in files:
     #     print(f"On file: {f}")
     #     file_path = os.path.join(PICKLE_FILES, f)
