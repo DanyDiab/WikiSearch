@@ -1,5 +1,4 @@
 wikidump/
-databases/
 *.pkl
 __pycache__/
 *.zip
