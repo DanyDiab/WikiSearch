@@ -13,16 +13,24 @@ def isWordValid(word):
 
 # TF
 def calculateTermFrequency(database: db.Database):
-    DOC_IDs = f"SELECT DOC_ID FROM {db.DOCUMENTS_TABLE}"
-    DOC_IDs = database.executeQuery(DOC_IDs)
-    for docID in DOC_IDs:
-        # theres gotta be a more efficient way
+    docQuery = f"SELECT * FROM {db.DOCUMENTS_TABLE}"
+    docIDs = database.executeQuery(docQuery)
 
+    docLenQuery = f"SELECT * FROM {db.DOC_LENGTH_TABLE}"
+    docLens = database.executeQuery(docLenQuery)
+
+    termsQuery = f"SELECT * FROM {db.TERMS_TABLE}"
+    terms = database.executeQuery(termsQuery)
+    
+
+    print(f"searching inverted index for {docIDs[0][1]}")
+    invertedQuery = f"SELECT * FROM {db.INVERTED_INDEX_TABLE} WHERE DOC_ID == {docIDs[0][1]}"
+    res = database.executeQuery(invertedQuery)
+    print(res)
 
 def main():
     database = db.Database()
     calculateTermFrequency(database=database)
-
 
 if __name__ == "__main__":
     main()

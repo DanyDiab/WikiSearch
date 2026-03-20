@@ -199,7 +199,9 @@ if __name__ == '__main__':
     # files = sorted(os.listdir(PICKLE_FILES))
     db = Database()
     
-    print(db.executeQuery("SELECT * FROM TERMS LIMIT 100"))
+    # print(db.executeQuery("SELECT * FROM TERMS LIMIT 100"))
+    # query = "CREATE INDEX idx_inverted_doc_id ON INVERTED_INDEX(doc_id);"
+    # db.executeQuery(query=query)
     # for f in files:
     #     print(f"On file: {f}")
     #     file_path = os.path.join(PICKLE_FILES, f)
