@@ -15,6 +15,7 @@ os.makedirs(BLOCK_DIR, exist_ok=True)
 
 WORD_RE = re.compile(r"[a-zA-Z]+")
 LINK_RE = re.compile(r"\[\[(.*?)\]\]")
+REDIRECT_RE = re.compile(r"^\s*#redirect\s*:?\s*\[\[", re.IGNORECASE)
 PAGE_TAG = "{http://www.mediawiki.org/xml/export-0.11/}page"
 
 def parse_page(
@@ -29,13 +30,15 @@ def parse_page(
     if elem.find("./{*}ns").text != "0":
         return False
 
-    title = elem.find("./{*}title").text.lower()
-    doc_id = int(elem.find("./{*}id").text)
     revision = elem.find("./{*}revision")
-
     text_elem = revision.find("./{*}text")
     text = text_elem.text or ""
+    if REDIRECT_RE.match(text):
+        return False
     text = text.lower()
+
+    title = elem.find("./{*}title").text.lower()
+    doc_id = int(elem.find("./{*}id").text)
 
     doc_map.append((title, doc_id))
 

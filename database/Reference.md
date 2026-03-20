@@ -14,12 +14,12 @@ Links words to documents and stores frequency.
 ## TABLE: DOCUMENTS
 Stores the doc id with title.
 - **doc_id** (INTEGER, PK): Unique ID for the page.
-- **title** (TEXT): The title of the page.
+- **page_name** (TEXT): The title of the page.
 
 ## TABLE: DOC_LENGTHS
 Used to normalize scores based on document size.
 - **doc_id** (INTEGER, PK/FK): Reference to DOCUMENTS.
-- **word_count** (INTEGER): Total word count of the document.
+- **page_length** (INTEGER): Total word count of the document.
 
 ## TABLE: LINKS
 Stores the graph structure for HITS algorithm.

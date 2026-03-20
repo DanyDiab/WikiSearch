@@ -91,20 +91,20 @@ class Database:
         db.connection.commit()
         db.executeQuery("DETACH DATABASE dany_db")
 
-    def selectValuesFromTitle(table: str, search: str):
-        query = f"""
-        SELECT * FROM {table} WHERE TITLE LIKE ?
-        """
-        search_term = f"%{search}%"
-        return db.executeQuery(query,params=(search_term,))
+    # def selectValuesFromTitle(self, table: str, search: str):
+    #     query = f"""
+    #     SELECT * FROM {table} WHERE TITLE LIKE ?
+    #     """
+    #     search_term = f"%{search}%"
+    #     return db.executeQuery(query,params=(search_term,))
 
-    def selectValuesFromID(table: str, id: int):
-        query = f"SELECT * FROM {table} WHERE DOC_ID == ?"
-        return db.executeQuery(query=query, params=(id,))
+    # def selectValuesFromID(table: str, id: int):
+    #     query = f"SELECT * FROM {table} WHERE DOC_ID == ?"
+    #     return db.executeQuery(query=query, params=(id,))
 
-    def showTablesInDatabase(self):
-        query = "SELECT name FROM sqlite_master WHERE type='table'"
-        return db.executeQuery(query)
+    # def showTablesInDatabase(self):
+    #     query = "SELECT name FROM sqlite_master WHERE type='table'"
+    #     return db.executeQuery(query)
     
 # this clears the database, like garbage collection, use after dropping tables or other big changes removing elements
     def vacuumDatabase(self):
