@@ -1,11 +1,12 @@
+from re import search
 from db import Database, DOC_LENGTH_TABLE, INVERTED_INDEX_TABLE, DOCUMENTS_TABLE
+import nltk
+from nltk.corpus import words, stopwords
 
-try:
-    # Optional dependency for word validation helpers.
-    from nltk.corpus import words
-    english_dict = set(words.words())
-except ModuleNotFoundError:
-    english_dict = None
+# nltk.download("stopwords")
+
+english_dict = set(words.words())
+stop_words = set(stopwords.words())
 
 
 def isWordValid(word):
@@ -13,63 +14,42 @@ def isWordValid(word):
         raise RuntimeError("nltk is not installed")
     return word.lower() in english_dict
 
-# TF
 def calculateTermFrequency(db: Database):
-    # docQuery = f"SELECT * FROM {db.DOCUMENTS_TABLE}"
-    # docIDs = database.executeQuery(docQuery)
+    search_query = "Which laptop has a better screen for outdoor use: the 2026 MacBook Air or the latest Dell XPS 13?"
 
-    # docLenQuery = f"SELECT * FROM {db.DOC_LENGTH_TABLE}"
-    # docLens = database.executeQuery(docLenQuery)
-
-    # termsQuery = f"SELECT * FROM {db.TERMS_TABLE}"
-    # terms = database.executeQuery(termsQuery)
-    
-
-    # print(f"searching inverted index for {docIDs[0][1]}")
-    term = "algorithm"
+    normalized_query = search_query.lower()
+    filtered_query = [word for word in normalized_query.split() if word not in stop_words]
+    in_query = ",".join(f"'{t}'" for t in filtered_query)
     query = f"""
-    SELECT
-        dm.page_name,
-        (i.word_count * 1.0 / dl.page_length) * idf.idf AS tf_idf,
-        i.word_count,
-        dl.page_length
-    FROM {INVERTED_INDEX_TABLE} i
-    JOIN TERMS t ON t.term_id = i.term_id
-    JOIN {DOC_LENGTH_TABLE} dl ON dl.doc_id = i.doc_id
-    JOIN {DOCUMENTS_TABLE} dm ON dm.doc_id = i.doc_id
-    CROSS JOIN (
         SELECT
-            LOG(
-                (SELECT COUNT(*) FROM {DOC_LENGTH_TABLE}) * 1.0 /
-                COUNT(DISTINCT i2.doc_id)
-            ) AS idf
-        FROM {INVERTED_INDEX_TABLE} i2
-        JOIN TERMS t2 ON t2.term_id = i2.term_id
-        WHERE t2.term = '{term}'
-    ) AS idf
-    WHERE t.term = '{term}'
-    AND dl.page_length > 500
-    ORDER BY tf_idf DESC
-    LIMIT 100
+            dm.doc_id,
+            dm.page_name,
+            SUM((i.word_count * 1.0 / dl.page_length) * idf.idf) AS tf_idf
+        FROM {INVERTED_INDEX_TABLE} i
+        JOIN TERMS t ON t.term_id = i.term_id
+        JOIN {DOC_LENGTH_TABLE} dl ON dl.doc_id = i.doc_id
+        JOIN {DOCUMENTS_TABLE} dm ON dm.doc_id = i.doc_id
+
+        JOIN (
+            SELECT
+                t2.term,
+                LOG(
+                    (SELECT COUNT(*) FROM {DOC_LENGTH_TABLE}) * 1.0 /
+                    COUNT(DISTINCT i2.doc_id)
+                ) AS idf
+            FROM {INVERTED_INDEX_TABLE} i2
+            JOIN TERMS t2 ON t2.term_id = i2.term_id
+            WHERE t2.term IN ({in_query})
+            GROUP BY t2.term
+        ) AS idf ON idf.term = t.term
+
+        WHERE t.term IN ({in_query})
+
+        GROUP BY dm.doc_id
+        ORDER BY tf_idf DESC
+        LIMIT 20
     """
 
-
-    # query = f"""
-    #     SELECT dm.page_name, i.word_count, dl.page_length, i.doc_id
-    #     FROM {INVERTED_INDEX_TABLE} i
-    #     JOIN {DOC_LENGTH_TABLE} dl ON dl.doc_id = i.doc_id
-    #     JOIN TERMS t ON t.term_id = i.term_id
-    #     JOIN {DOCUMENTS_TABLE} dm ON dm.doc_id = i.doc_ido 'algorithm' AND dm.page_name = 'multi-digit multiplication'
-    # """
-
-    # | doc_id | word_count | term_id JOIN term | 
-
-    # query = f"""
-    # SELECT t.term, i.word_count
-    # FROM {INVERTED_INDEX_TABLE} i
-    # JOIN TERMS t ON t.term_id = i.term_id
-    # WHERE i.doc_id = 81251898
-    # """
     res = db.executeQuery(query)
     for val in res:
         print(val)

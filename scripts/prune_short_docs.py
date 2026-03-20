@@ -4,7 +4,7 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).parent.parent
 DB_PATH = BASE_DIR / "database" / "wiki.db"
-MIN_LENGTH_EXCLUSIVE = 10
+MIN_LENGTH_EXCLUSIVE = 500
 
 
 def main():
