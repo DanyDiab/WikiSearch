@@ -15,7 +15,7 @@ def isWordValid(word):
     return word.lower() in english_dict
 
 def calculateTermFrequency(db: Database):
-    search_query = "Which laptop has a better screen for outdoor use: the 2026 MacBook Air or the latest Dell XPS 13?"
+    search_query = "Mountains of the world"
 
     normalized_query = search_query.lower()
     filtered_query = [word for word in normalized_query.split() if word not in stop_words]
@@ -43,7 +43,7 @@ def calculateTermFrequency(db: Database):
             GROUP BY t2.term
         ) AS idf ON idf.term = t.term
 
-        WHERE t.term IN ({in_query})
+        WHERE t.term IN ({in_query}) AND dl.page_length > 500
 
         GROUP BY dm.doc_id
         ORDER BY tf_idf DESC
