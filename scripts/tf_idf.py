@@ -16,10 +16,10 @@ def isWordValid(word):
         raise RuntimeError("nltk is not installed")
     return word.lower() in english_dict
 
-def calculateTF_IDF(db: Database):
-    search_query = "Mountains of the world"
-
+def getCandiadatePages(search_query: str) -> tuple[list, list]:
+    db = Database()
     normalized_query = search_query.lower()
+    # filter query for stop words
     filtered_query = [word for word in normalized_query.split() if word not in stop_words]
     in_query = ",".join(f"'{t}'" for t in filtered_query)
     query = f"""
@@ -50,21 +50,30 @@ def calculateTF_IDF(db: Database):
             ORDER BY SUM((i.word_count * 1.0 / dl.page_length) * idf.idf) DESC
             LIMIT {numToReturn}
         )
-        SELECT DISTINCT i.doc_id FROM {LINKS_TABLE} i
-        JOIN {DOC_LENGTH_TABLE} dl ON dl.doc_id = i.doc_id
-        WHERE (i.doc_id IN TF_IDF OR i.link_id IN TF_IDF) AND dl.page_length > {pageLengthFilter}
+        SELECT
+            DISTINCT l.doc_id,
+            dm.page_name
+            FROM {LINKS_TABLE} l
+            JOIN {DOCUMENTS_TABLE} dm ON dm.doc_id = l.doc_id
+            WHERE
+            l.doc_id IN TF_IDF OR
+            l.link_id IN TF_IDF
     """
 
     res = db.executeQuery(query)
-    for val in res:
-        print(val)
-    print(len(res))
+    stringRes = ",".join(str(doc_id[0]) for doc_id in res)
+    links = getLinks(docIDs=stringRes,db=db)
+    return (res,links)
 
 
+def getLinks(docIDs: list, db: Database):
+    query = f"""SELECT * FROM {LINKS_TABLE} WHERE doc_id IN ({docIDs}) AND link_id IN ({docIDs})"""
+    res = db.executeQuery(query=query)
+    return res
 
 def main():
-    database = Database()
-    calculateTF_IDF(db=database)
+
+    getCandiadatePages("obama")
 
 if __name__ == "__main__":
     main()
