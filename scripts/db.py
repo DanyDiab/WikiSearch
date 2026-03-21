@@ -91,6 +91,13 @@ class Database:
         db.connection.commit()
         db.executeQuery("DETACH DATABASE dany_db")
 
+
+
+    def renameDBTableColumns(self, table: str, oldCol: str, newCol: str):
+        query = f"ALTER TABLE {table} RENAME COLUMN {oldCol} TO {newCol}"
+        self.executeQuery(query=query)
+        self.connection.commit()
+
     # def selectValuesFromTitle(self, table: str, search: str):
     #     query = f"""
     #     SELECT * FROM {table} WHERE TITLE LIKE ?
@@ -117,6 +124,18 @@ class Database:
         self.drop_table(DOC_LENGTH_TABLE)
         self.drop_table(LINKS_TABLE)
         self.vacuumDatabase()
+
+    def showAllTableColumnHeaders(self):
+        query = """SELECT 
+        name AS table_name, 
+        sql AS table_definition
+    FROM 
+        sqlite_schema
+    WHERE 
+        type = 'table' 
+        AND name NOT LIKE 'sqlite_%';"""
+        return self.executeQuery(query=query)
+    
 
 def push_doc_map_into_db(db: Database, file_path: str):
     data = open_pickle(file_path)
@@ -194,11 +213,18 @@ def push_link_graph_to_db(db: Database, file_path: str):
 
 
 
-
 if __name__ == '__main__':
     # files = sorted(os.listdir(PICKLE_FILES))
     db = Database()
     
+
+
+    db.renameDBTableColumns(LINKS_TABLE, "target_doc_id", "link_id")
+    res = (db.showAllTableColumnHeaders())
+    for val in res:
+        print(val)
+
+    # db.renameDBTableColumns()
     # print(db.executeQuery("SELECT * FROM TERMS LIMIT 100"))
     # query = "CREATE INDEX idx_inverted_doc_id ON INVERTED_INDEX(doc_id);"
     # db.executeQuery(query=query)

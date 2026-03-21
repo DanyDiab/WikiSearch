@@ -23,5 +23,5 @@ Used to normalize scores based on document size.
 
 ## TABLE: LINKS
 Stores the graph structure for HITS algorithm.
-- **source_doc_id** (INTEGER, FK): The page containing the link.
-- **target_doc_id** (INTEGER, FK): The page the link points to.
+- **doc_id** (INTEGER, FK): The page containing the link.
+- **link_id** (INTEGER, FK): The page the link points to.
