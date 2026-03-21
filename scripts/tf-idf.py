@@ -8,6 +8,7 @@ from nltk.corpus import words, stopwords
 english_dict = set(words.words())
 stop_words = set(stopwords.words())
 
+pageLengthFilter = 500
 
 def isWordValid(word):
     if english_dict is None:
@@ -43,7 +44,7 @@ def calculateTermFrequency(db: Database):
             GROUP BY t2.term
         ) AS idf ON idf.term = t.term
 
-        WHERE t.term IN ({in_query}) AND dl.page_length > 500
+        WHERE t.term IN ({in_query}) AND dl.page_length > {pageLengthFilter}
 
         GROUP BY dm.doc_id
         ORDER BY tf_idf DESC
