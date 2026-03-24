@@ -10,51 +10,53 @@ def makeLinkMap(links: list) -> map:
     return linkMap
 
 
-def generateIndexMap(baseSet: dict):
-    
-    adjMatrix = [
-        [0] * len(baseSet) for i in range(len(baseSet))
-    ]
-
-
+def generateIndexMap(baseSet: dict) -> dict[dict[int, list[int]]]:
     indexMap = {}
 
     for (key, values) in baseSet.items():
         if key not in indexMap:
             indexMap[key] = {I_POINT_TO_WHO: [], WHO_POINTS_TO_ME: []}
-        
-        indexMap[key][I_POINT_TO_WHO] = values 
+
+        indexMap[key][I_POINT_TO_WHO] = values
 
         for val in values:
             if val not in indexMap:
                 indexMap[val] = {I_POINT_TO_WHO: [], WHO_POINTS_TO_ME: []}
-            
-            indexMap[val][WHO_POINTS_TO_ME].append(key)
-    
-    return adjMatrix
 
-def getNewWeights(valArr: dict, index_map: dict, updateArr: list, fetchArr: list):
-    for (key,valArr) in valArr:
-        for val in valArr:
-            pass
+            indexMap[val][WHO_POINTS_TO_ME].append(key)
+
+    return indexMap
+
+def getNewWeights(index_map: dict, hits_index: dict, updateArr: list, fetchArr: list, update_x: bool):
+    for (key, obj) in index_map.items():
+        update_type = WHO_POINTS_TO_ME if update_x else I_POINT_TO_WHO
+        curr_index = hits_index[key]
+        new_val = 0
+        for val in obj[update_type]:
+            new_val += fetchArr[hits_index[val]]
+        
+        updateArr[curr_index] = new_val
+    
+    update_sum = sum(updateArr)
+    updateArr = [val / update_sum for val in updateArr]
+    
+    return updateArr
+
 
 def iterate(base_set: list, k: int):
-    index_map = {}
+    hits_index = {key: i for i, key in enumerate(base_set.keys())}
+    index_map = generateIndexMap(base_set)
 
-    for i, key in enumerate(base_set.keys()):
-        index_map[key] = i
+    xAuth = [1] * len(base_set)
+    yHub = [1] * len(base_set)
+
+    for _ in range(0, k):
+        xAuth = getNewWeights(index_map, hits_index, xAuth, yHub, True)
+        yHub = getNewWeights(index_map, hits_index, yHub, xAuth, False)
     
-    generateIndexMap(base_set)
-    return
-    z = [1] * len(base_set)
-    xAuth = z
-    yHub = z
-
-    for i in range(0,k):
-        # xAuth = 
-        # sum y's to get x
-        # sum x's to get y
-        return
+    return xAuth, yHub
+        
+        
 
 # how many hubs point to me
 # def getNewAuthWeight(xAuth: list,):
@@ -64,15 +66,21 @@ def iterate(base_set: list, k: int):
 
 def main():
     data = {
-        101: [102, 103, 104],
-        102: [101],
-        103: [101, 104],
-        104: [101, 105],
-        105: [101, 106],
-        106: [101, 103]
-    }
+    201: [],
+    202: [201, 211],
+    203: [201, 209, 210],
+    204: [201, 205, 206, 211, 212],
+    205: [201, 206, 207],
+    206: [201, 204],
+    207: [201, 205],
+    208: [201, 203, 207, 210],
+    209: [201, 203],
+    210: [201, 203],
+    211: [201, 204, 206],
+    212: [201]
+  }
 
-    
+
     # print("query:", end=" ")
     # query = input()
 
@@ -81,8 +89,17 @@ def main():
     # print(links[0])
     # linkMap = makeLinkMap(links=links)
     # print(linkMap)
-    iterate(base_set=data, k=20)
-# 
+    xAuth, yHub = iterate(base_set=data, k=20)
+    print(xAuth)
+    print(yHub)
+
+    xAuth_winner = xAuth.index(max(xAuth))
+    yHub_winner = yHub.index(max(yHub))
+
+    print("\n" * 10)
+    print(xAuth_winner)
+    print(yHub_winner)
+#
 
 if __name__ == "__main__":
     main()
