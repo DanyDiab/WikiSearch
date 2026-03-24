@@ -1,16 +1,16 @@
-from re import search
 from db import Database, DOC_LENGTH_TABLE, INVERTED_INDEX_TABLE, DOCUMENTS_TABLE, LINKS_TABLE
 import nltk
 from nltk.corpus import words, stopwords, wordnet
 from nltk.stem import WordNetLemmatizer
 
 # nltk.download('wordnet')
+# nltk.download('averaged_perceptron_tagger_eng')
 
 english_dict = set(words.words())
 stop_words = set(stopwords.words())
 
 pageLengthFilter = 500
-numToReturn = 200
+numToReturn = 20
 
 def isWordValid(word):
     if english_dict is None:
@@ -43,8 +43,8 @@ def getCandiadatePages(search_query: str) -> tuple[list, list]:
     db = Database()
     normalized_query = search_query.lower()
     # filter query for stop words
-    cleaned_query = extract_base_words(normalized_query=normalized_query,stop_words=stop_words)
-    in_query = ",".join(f"'{t}'" for t in cleaned_query)
+    filtered_query: list[str] = [word for word in normalized_query.split() if word not in stop_words]
+    in_query = ",".join(f"'{t}'" for t in filtered_query)
     query = f"""
         WITH TF_IDF AS(
             SELECT
@@ -73,29 +73,29 @@ def getCandiadatePages(search_query: str) -> tuple[list, list]:
             ORDER BY SUM((i.word_count * 1.0 / dl.page_length) * idf.idf) DESC
             LIMIT {numToReturn}
         )
-        SELECT
-            DISTINCT l.doc_id,
-            dm.page_name
-            FROM {LINKS_TABLE} l
-            JOIN {DOCUMENTS_TABLE} dm ON dm.doc_id = l.doc_id
-            WHERE
-            l.doc_id IN TF_IDF OR
-            l.link_id IN TF_IDF
+        SELECT DISTINCT
+            l.doc_id,
+            l.link_id
+        FROM {LINKS_TABLE} l
+        WHERE
+            l.doc_id IN (SELECT doc_id FROM TF_IDF)
+            OR l.link_id IN (SELECT doc_id FROM TF_IDF)
     """
 
     res = db.executeQuery(query)
-    stringRes = ",".join(str(doc_id[0]) for doc_id in res)
-    links = getLinks(docIDs=stringRes,db=db)
-    return (res,links)
 
+    base_set = {}
+    for doc_id, link_id in res:
+        if doc_id not in base_set:
+            base_set[doc_id] = []
+        if link_id not in base_set:
+            base_set[link_id] = []
 
-def getLinks(docIDs: list, db: Database):
-    query = f"""SELECT * FROM {LINKS_TABLE} WHERE doc_id IN ({docIDs}) AND link_id IN ({docIDs})"""
-    res = db.executeQuery(query=query)
-    return res
+        base_set[doc_id].append(link_id)
+
+    return base_set
 
 def main():
-
     getCandiadatePages("obama")
 
 if __name__ == "__main__":
