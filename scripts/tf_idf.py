@@ -1,8 +1,10 @@
 from re import search
 from db import Database, DOC_LENGTH_TABLE, INVERTED_INDEX_TABLE, DOCUMENTS_TABLE, LINKS_TABLE
 import nltk
-from nltk.corpus import words, stopwords
+from nltk.corpus import words, stopwords, wordnet
+from nltk.stem import WordNetLemmatizer
 
+# nltk.download('wordnet')
 
 english_dict = set(words.words())
 stop_words = set(stopwords.words())
@@ -15,12 +17,34 @@ def isWordValid(word):
         raise RuntimeError("nltk is not installed")
     return word.lower() in english_dict
 
+def get_wordnet_pos(treebank_tag: str) -> str:
+    if treebank_tag.startswith('J'): return wordnet.ADJ
+    elif treebank_tag.startswith('V'): return wordnet.VERB
+    elif treebank_tag.startswith('N'): return wordnet.NOUN
+    elif treebank_tag.startswith('R'): return wordnet.ADV
+    else: return wordnet.NOUN
+
+def extract_base_words(normalized_query: str, stop_words: set[str]) -> list[str]:
+    filtered_query: list[str] = [word for word in normalized_query.split() if word not in stop_words]
+    pos_tags: list[tuple[str, str]] = nltk.pos_tag(filtered_query)
+    lemmatizer: WordNetLemmatizer = WordNetLemmatizer()
+    
+    cleaned_query: list[str] = []
+    
+    for word, tag in pos_tags:
+        wordnet_pos: str = get_wordnet_pos(tag)
+        base_word: str = lemmatizer.lemmatize(word, pos=wordnet_pos)
+        cleaned_query.append(base_word)
+        
+    return cleaned_query
+
+
 def getCandiadatePages(search_query: str) -> tuple[list, list]:
     db = Database()
     normalized_query = search_query.lower()
     # filter query for stop words
-    filtered_query = [word for word in normalized_query.split() if word not in stop_words]
-    in_query = ",".join(f"'{t}'" for t in filtered_query)
+    cleaned_query = extract_base_words(normalized_query=normalized_query,stop_words=stop_words)
+    in_query = ",".join(f"'{t}'" for t in cleaned_query)
     query = f"""
         WITH TF_IDF AS(
             SELECT
