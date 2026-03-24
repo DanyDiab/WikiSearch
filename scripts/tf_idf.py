@@ -3,7 +3,6 @@ from db import Database, DOC_LENGTH_TABLE, INVERTED_INDEX_TABLE, DOCUMENTS_TABLE
 import nltk
 from nltk.corpus import words, stopwords
 
-# nltk.download("stopwords")
 
 english_dict = set(words.words())
 stop_words = set(stopwords.words())
