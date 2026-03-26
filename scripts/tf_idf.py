@@ -3,7 +3,7 @@ import nltk
 from nltk.corpus import words, stopwords, wordnet
 from nltk.stem import WordNetLemmatizer
 
-# nltk.download('wordnet')
+nltk.download('wordnet')
 # nltk.download('averaged_perceptron_tagger_eng')
 
 english_dict = set(words.words())
@@ -49,7 +49,8 @@ def getCandiadatePages(search_query: str) -> dict[int, list[int]]:
     query = f"""
         WITH TF_IDF AS(
             SELECT
-                dm.doc_id
+                dm.doc_id,
+                SUM((i.word_count * 1.0 / dl.page_length) * idf.idf) AS tf_idf_score
             FROM {INVERTED_INDEX_TABLE} i
             JOIN TERMS t ON t.term_id = i.term_id
             JOIN {DOC_LENGTH_TABLE} dl ON dl.doc_id = i.doc_id
@@ -77,25 +78,36 @@ def getCandiadatePages(search_query: str) -> dict[int, list[int]]:
         )
         SELECT DISTINCT
             l.doc_id,
-            l.link_id
+            l.link_id,
+            t1.tf_idf_score AS source_doc_score,
+            t2.tf_idf_score AS link_doc_score
         FROM {LINKS_TABLE} l
+        LEFT JOIN TF_IDF t1 ON l.doc_id = t1.doc_id
+        LEFT JOIN TF_IDF t2 ON l.link_id = t2.doc_id
         WHERE
-            l.doc_id IN (SELECT doc_id FROM TF_IDF)
-            OR l.link_id IN (SELECT doc_id FROM TF_IDF)
+            t1.doc_id IS NOT NULL
+            OR t2.doc_id IS NOT NULL
     """
 
     res = db.executeQuery(query)
 
     base_set = {}
-    for doc_id, link_id in res:
+    scores = {}
+    for doc_id, link_id, source_doc_score, link_doc_score in res:
         if doc_id not in base_set:
             base_set[doc_id] = []
         if link_id not in base_set:
             base_set[link_id] = []
-
         base_set[doc_id].append(link_id)
 
-    return base_set
+        if source_doc_score is not None:
+            scores[doc_id] = source_doc_score
+            
+        if link_doc_score is not None:
+            scores[link_id] = link_doc_score
+        
+
+    return base_set, scores
 
 def main():
     getCandiadatePages("obama")

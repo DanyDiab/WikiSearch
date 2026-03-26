@@ -53,12 +53,18 @@ def getNewWeights(index_map: dict, hits_index: dict, updateArr: list, fetchArr: 
 
 
 
-def iterate(base_set: list, k: int):
+def iterate(base_set: list, scores: dict, k: int):
     hits_index = {key: i for i, key in enumerate(base_set.keys())}
     index_map = generateIndexMap(base_set)
 
-    xAuth = [1] * len(base_set)
-    yHub = [1] * len(base_set)
+    xAuth = [0.0] * len(base_set)
+    yHub = [0.0] * len(base_set)
+
+    for doc_id, i in hits_index.items():
+        if doc_id in scores:
+            score = scores.get(doc_id, 0.0)
+            xAuth[i] = score
+            yHub[i] = score
 
     for _ in range(0, k):
         xAuth = getNewWeights(index_map, hits_index, xAuth, yHub, True)
@@ -79,9 +85,9 @@ def iterate(base_set: list, k: int):
 def main():
     query = input("query: ")
 
-    base_set = tf_idf.getCandiadatePages(query)
+    base_set, scores = tf_idf.getCandiadatePages(query)
 
-    xAuth, yHub = iterate(base_set=base_set, k=20)
+    xAuth, yHub = iterate(base_set=base_set, scores = scores, k=3)
 
     top_x = sorted(xAuth, key=lambda x: x[1], reverse=True)[:20]
     top_y = sorted(yHub, key=lambda x: x[1], reverse=True)[:20]
