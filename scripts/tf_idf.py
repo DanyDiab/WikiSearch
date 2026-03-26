@@ -39,11 +39,12 @@ def extract_base_words(normalized_query: str, stop_words: set[str]) -> list[str]
     return cleaned_query
 
 
-def getCandiadatePages(search_query: str) -> tuple[list, list]:
+def getCandiadatePages(search_query: str) -> dict[int, list[int]]:
     db = Database()
     normalized_query = search_query.lower()
     # filter query for stop words
     filtered_query: list[str] = [word for word in normalized_query.split() if word not in stop_words]
+    num_terms = len(filtered_query)
     in_query = ",".join(f"'{t}'" for t in filtered_query)
     query = f"""
         WITH TF_IDF AS(
@@ -70,6 +71,7 @@ def getCandiadatePages(search_query: str) -> tuple[list, list]:
             WHERE t.term IN ({in_query}) AND dl.page_length > {pageLengthFilter}
 
             GROUP BY dm.doc_id
+            HAVING COUNT(DISTINCT t.term) = {num_terms}
             ORDER BY SUM((i.word_count * 1.0 / dl.page_length) * idf.idf) DESC
             LIMIT {numToReturn}
         )

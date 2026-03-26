@@ -86,20 +86,24 @@ def main():
     top_x = sorted(xAuth, key=lambda x: x[1], reverse=True)[:20]
     top_y = sorted(yHub, key=lambda x: x[1], reverse=True)[:20]
 
-    doc_ids = {doc_id for doc_id, _ in top_x} | {doc_id for doc_id, _ in top_y}
-    doc_ids_str = ",".join(str(doc_id) for doc_id in doc_ids)
+    auth_ids_str = ",".join(str(doc_id) for doc_id, _ in top_x)
+    auth_query = f"SELECT doc_id, page_name FROM DOCUMENTS WHERE doc_id IN ({auth_ids_str})"
+    
+    hub_ids_str = ",".join(str(doc_id) for doc_id, _ in top_y)
+    hub_query = f"SELECT doc_id, page_name FROM DOCUMENTS WHERE doc_id IN ({hub_ids_str})"
 
-    query = f"""
-        SELECT doc_id, page_name
-        FROM DOCUMENTS
-        WHERE doc_id IN ({doc_ids_str})
-    """
     db = Database()
-
-    res = db.executeQuery(query)
-    for val in res:
+    
+    print("\n--- TOP AUTHORITIES (Answers) ---")
+    for val in db.executeQuery(auth_query): {
         print(val[1])
-#
+    }
+
+    print("\n--- TOP HUBS (Directories) ---")
+    for val in db.executeQuery(hub_query): {
+        print(val[1])
+    }
+
 
 if __name__ == "__main__":
     main()
