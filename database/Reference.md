@@ -10,6 +10,7 @@ Links words to documents and stores frequency.
 - **term_id** (INTEGER, PK/FK): Reference to TERMS.
 - **doc_id** (INTEGER, PK/FK): Reference to DOCUMENTS.
 - **word_count** (INTEGER): Number of times the word appears in this doc.
+- **tf_idf** (REAL): Cached TF-IDF score for this `(term_id, doc_id)` pair.
 
 ## TABLE: DOCUMENTS
 Stores the doc id with title.

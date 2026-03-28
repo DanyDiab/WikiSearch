@@ -36,13 +36,15 @@ def generateIndexMap(baseSet: dict) -> dict[dict[int, list[int]]]:
 
 
 
-def getNewWeights(index_map: dict, hits_index: dict, updateArr: list, fetchArr: list, update_x: bool):
+def getNewWeights(index_map: dict, hits_index: dict, mult: dict, updateArr: list, fetchArr: list, update_x: bool):
     for (key, obj) in index_map.items():
         update_type = WHO_POINTS_TO_ME if update_x else I_POINT_TO_WHO
         curr_index = hits_index[key]
-        new_val = 0
+        curr_mult = mult.get(key, 0.5)
+        new_val= 0
         for val in obj[update_type]:
-            new_val += fetchArr[hits_index[val]]
+            val_mult = mult.get(val, 0.5)
+            new_val += fetchArr[hits_index[val]] * val_mult * curr_mult
 
         updateArr[curr_index] = new_val
 
@@ -53,22 +55,16 @@ def getNewWeights(index_map: dict, hits_index: dict, updateArr: list, fetchArr: 
 
 
 
-def iterate(base_set: list, scores: dict, k: int):
+def iterate(base_set: list, mult: dict, k: int):
     hits_index = {key: i for i, key in enumerate(base_set.keys())}
     index_map = generateIndexMap(base_set)
 
-    xAuth = [0.0] * len(base_set)
-    yHub = [0.0] * len(base_set)
-
-    for doc_id, i in hits_index.items():
-        if doc_id in scores:
-            score = scores.get(doc_id, 0.0)
-            xAuth[i] = score
-            yHub[i] = score
+    xAuth = [1.0] * len(base_set)
+    yHub = [1.0] * len(base_set)
 
     for _ in range(0, k):
-        xAuth = getNewWeights(index_map, hits_index, xAuth, yHub, True)
-        yHub = getNewWeights(index_map, hits_index, yHub, xAuth, False)
+        xAuth = getNewWeights(index_map, hits_index, mult, xAuth, yHub, True)
+        yHub = getNewWeights(index_map, hits_index, mult, yHub, xAuth, False)
 
     reverse_hits_index = {i: key for key, i in hits_index.items()}
     x_tuple = []
@@ -85,9 +81,9 @@ def iterate(base_set: list, scores: dict, k: int):
 def main():
     query = input("query: ")
 
-    base_set, scores = tf_idf.getCandiadatePages(query)
+    base_set, tf_idf_mult = tf_idf.getCandiadatePages(query)
 
-    xAuth, yHub = iterate(base_set=base_set, scores = scores, k=3)
+    xAuth, yHub = iterate(base_set=base_set, mult=tf_idf_mult, k=3)
 
     top_x = sorted(xAuth, key=lambda x: x[1], reverse=True)[:20]
     top_y = sorted(yHub, key=lambda x: x[1], reverse=True)[:20]
