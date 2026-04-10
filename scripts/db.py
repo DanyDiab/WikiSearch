@@ -5,6 +5,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).parent.parent
 DATABASE_DIR = BASE_DIR / "database"
 WIKI_DB = DATABASE_DIR / "wiki.db"
+DEFAULT_DB_PATH = WIKI_DB
 
 DOCUMENTS_TABLE = "DOCUMENTS"
 DOC_LENGTH_TABLE = "DOC_LENGTHS"
@@ -23,8 +24,8 @@ SQLITE_VARIABLE_LIMIT = 900
 
 
 class Database:
-    def __init__(self, db_path: Path = WIKI_DB):
-        self.db_path = db_path
+    def __init__(self, db_path: Path | None = None):
+        self.db_path = Path(db_path) if db_path is not None else DEFAULT_DB_PATH
         self.connection = self._connect()
         self.connection.create_function("log", 1, self._safe_log)
         self.cursor = self.connection.cursor()
@@ -258,6 +259,11 @@ class Database:
         self.calculate_tfidf()
         self.drop_table(RAW_LINKS_TABLE)
         self.connection.commit()
+
+
+def set_default_db_path(db_path: str | Path):
+    global DEFAULT_DB_PATH
+    DEFAULT_DB_PATH = Path(db_path)
 
 
 def get_database() -> Database:

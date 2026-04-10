@@ -1,6 +1,16 @@
+# After installing these packages, download the required NLTK data with:
+# python3 -m nltk.downloader words stopwords averaged_perceptron_tagger_eng wordnet
+#
+# Required NLTK data:
+# - words
+# - stopwords
+# - averaged_perceptron_tagger_eng
+# - wordnet
+beautifulsoup4==4.13.5
 click==8.3.1
 colorama==0.4.6
 joblib==1.5.3
 nltk==3.9.3
 regex==2026.2.28
+requests==2.32.5
 tqdm==4.67.3
