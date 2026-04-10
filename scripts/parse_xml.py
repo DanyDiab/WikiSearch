@@ -1,117 +1,109 @@
-import os
 import re
-import pickle
 import xml.etree.ElementTree as ET
-
+from codecs import getincrementaldecoder
 from collections import Counter
-
-block_id = 0
-BLOCK_SIZE = 50_000
-
-CWD = os.getcwd()
-DUMP_DIR = os.path.join(CWD, "wikidump")
-BLOCK_DIR = os.path.join(CWD, "block_dir")
-os.makedirs(BLOCK_DIR, exist_ok=True)
+from typing import Iterable, Iterator
 
 WORD_RE = re.compile(r"[a-zA-Z]+")
 LINK_RE = re.compile(r"\[\[(.*?)\]\]")
 REDIRECT_RE = re.compile(r"^\s*#redirect\s*:?\s*\[\[", re.IGNORECASE)
 PAGE_TAG = "{http://www.mediawiki.org/xml/export-0.11/}page"
 
-def parse_page(
-    elem: ET.Element,
-    doc_map: list[tuple[str, int]],
-    link_graph: dict[int, list[str]],
-    inverted_index: dict[str, list[tuple[int, int]]],
-    document_lengths: dict[int, int]
-) -> bool:
+
+def normalize_link_title(raw_link: str) -> str | None:
+    title = raw_link.split("|")[0].strip().lower()
+    if not title or ":" in title:
+        return None
+    return title
+
+
+def parse_page(elem: ET.Element):
     if elem.find("./{*}redirect") is not None:
-        return False
-    if elem.find("./{*}ns").text != "0":
-        return False
+        return None
+
+    namespace = elem.find("./{*}ns")
+    if namespace is None or namespace.text != "0":
+        return None
 
     revision = elem.find("./{*}revision")
+    if revision is None:
+        return None
+
     text_elem = revision.find("./{*}text")
-    text = text_elem.text or ""
+    text = (text_elem.text or "") if text_elem is not None else ""
     if REDIRECT_RE.match(text):
-        return False
-    text = text.lower()
+        return None
 
-    title = elem.find("./{*}title").text.lower()
-    doc_id = int(elem.find("./{*}id").text)
+    title_elem = elem.find("./{*}title")
+    id_elem = elem.find("./{*}id")
+    if title_elem is None or id_elem is None or title_elem.text is None or id_elem.text is None:
+        return None
 
-    doc_map.append((title, doc_id))
+    normalized_text = text.lower()
+    normalized_title = title_elem.text.lower()
+    doc_id = int(id_elem.text)
 
-    words = WORD_RE.findall(text)
-    count = Counter(words)
-
-    for word, freq in count.items():
-        if word not in inverted_index:
-            inverted_index[word] = []
-
-        inverted_index[word].append((doc_id, freq))
-
-    links = LINK_RE.findall(text)
-
+    word_counts = Counter(WORD_RE.findall(normalized_text))
     cleaned_links = {
-        link.split("|")[0]
-        for link in links
-        if ":" not in link
+        normalized_link
+        for normalized_link in (
+            normalize_link_title(link)
+            for link in LINK_RE.findall(normalized_text)
+        )
+        if normalized_link is not None
     }
 
-    cleaned_links_list = list(cleaned_links)
-
-    link_graph[doc_id] = cleaned_links_list
-
-    document_lengths[doc_id] = len(words)
-
-    return True
-
-
-
-def write_block(inverted_index: dict[str, list[tuple[int, int]]]):
-    global block_id
-
-    filename = f"index_block_{block_id}.pkl"
-    sorted_block = {}
-
-    for word in sorted(inverted_index):
-        inverted_index[word].sort()
-        sorted_block[word] = inverted_index[word]
-
-    with open(os.path.join(BLOCK_DIR, filename), "wb") as p:
-        pickle.dump(sorted_block, p)
-
-    inverted_index.clear()
-    block_id += 1
+    return {
+        "doc_id": doc_id,
+        "title": normalized_title,
+        "page_length": sum(word_counts.values()),
+        "word_counts": word_counts,
+        "links": cleaned_links,
+    }
 
 
-
-def read_xml_file(
-    filename: str,
-    doc_map: list[tuple[str, int]],
-    link_graph: dict[int, list[str]],
-    inverted_index: dict[str, list[tuple[int, int]]],
-    document_lengths: dict[int, int],
-):
-    doc_counter = 0
-
+def iter_documents(filename: str) -> Iterator[dict]:
     for _, elem in ET.iterparse(filename, events=("end",)):
-        if elem.tag == PAGE_TAG:
-            result = parse_page(
-                elem,
-                doc_map,
-                link_graph,
-                inverted_index,
-                document_lengths
-            )
+        if elem.tag != PAGE_TAG:
+            continue
+
+        parsed_page = parse_page(elem)
+        elem.clear()
+
+        if parsed_page is not None:
+            yield parsed_page
+
+
+def iter_documents_from_chunks(chunks: Iterable[bytes]) -> Iterator[dict]:
+    parser = ET.XMLPullParser(events=("end",))
+    decoder = getincrementaldecoder("utf-8")()
+
+    for chunk in chunks:
+        if not chunk:
+            continue
+
+        parser.feed(decoder.decode(chunk))
+        for _, elem in parser.read_events():
+            if elem.tag != PAGE_TAG:
+                continue
+
+            parsed_page = parse_page(elem)
             elem.clear()
 
-            if result:
-                doc_counter += 1
+            if parsed_page is not None:
+                yield parsed_page
 
-            if result and doc_counter % BLOCK_SIZE == 0:
-                write_block(inverted_index)
+    tail = decoder.decode(b"", final=True)
+    if tail:
+        parser.feed(tail)
 
-    if inverted_index:
-        write_block(inverted_index)
+    parser.close()
+    for _, elem in parser.read_events():
+        if elem.tag != PAGE_TAG:
+            continue
+
+        parsed_page = parse_page(elem)
+        elem.clear()
+
+        if parsed_page is not None:
+            yield parsed_page

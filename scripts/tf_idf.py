@@ -1,4 +1,11 @@
-from db import Database, DOC_LENGTH_TABLE, DOCUMENTS_TABLE, INVERTED_INDEX_TABLE, LINKS_TABLE
+from db import (
+    Database,
+    DOC_LENGTH_TABLE,
+    DOCUMENTS_TABLE,
+    INVERTED_INDEX_TABLE,
+    LINKS_TABLE,
+    TERMS_TABLE,
+)
 import heapq
 import nltk
 import re
@@ -88,28 +95,28 @@ def get_title_boost(page_name: str, normalized_query_tokens: list[str]) -> float
     return title_boost
 
 
-def getCandiadatePages(search_query: str) -> dict[int, list[int]]:
+def getTopRankedPages(search_query: str) -> list[tuple[int, str, float]]:
     db = Database()
     normalized_query = search_query.lower()
-    # filter query for stop words
     filtered_query: list[str] = [word for word in normalized_query.split() if word not in stop_words]
     if not filtered_query:
-        return {}, {}
+        db.close()
+        return []
 
     num_terms = len(filtered_query)
-    in_query = ",".join(f"'{t}'" for t in filtered_query)
+    placeholders = ",".join("?" for _ in filtered_query)
     query = f"""
         SELECT
             d.doc_id,
             d.page_name,
             SUM(i.tf_idf) AS tf_idf_score
         FROM {INVERTED_INDEX_TABLE} i
-        JOIN TERMS t ON t.term_id = i.term_id
+        JOIN {TERMS_TABLE} t ON t.term_id = i.term_id
         JOIN {DOC_LENGTH_TABLE} dl ON dl.doc_id = i.doc_id
         JOIN {DOCUMENTS_TABLE} d ON d.doc_id = i.doc_id
         WHERE
-            t.term IN ({in_query})
-            AND dl.page_length > {pageLengthFilter}
+            t.term IN ({placeholders})
+            AND dl.page_length > ?
             AND i.tf_idf IS NOT NULL
         GROUP BY d.doc_id
         HAVING COUNT(DISTINCT t.term) = {num_terms}
@@ -117,18 +124,29 @@ def getCandiadatePages(search_query: str) -> dict[int, list[int]]:
         LIMIT {candidatePoolSize}
     """
 
-    candidate_rows = db.executeQuery(query)
+    candidate_rows = db.execute_query(query, tuple(filtered_query) + (pageLengthFilter,))
     normalized_query_tokens = normalize_text(search_query)
 
-    top_seed_pages = []
+    top_ranked_pages = []
     for doc_id, page_name, tf_idf_score in candidate_rows:
-        seed_score = tf_idf_score + get_title_boost(page_name, normalized_query_tokens)
-        if len(top_seed_pages) < numToReturn:
-            heapq.heappush(top_seed_pages, (seed_score, doc_id))
-        elif seed_score > top_seed_pages[0][0]:
-            heapq.heapreplace(top_seed_pages, (seed_score, doc_id))
+        combined_score = tf_idf_score + get_title_boost(page_name, normalized_query_tokens)
+        entry = (combined_score, doc_id, page_name)
+        if len(top_ranked_pages) < numToReturn:
+            heapq.heappush(top_ranked_pages, entry)
+        elif combined_score > top_ranked_pages[0][0]:
+            heapq.heapreplace(top_ranked_pages, entry)
 
-    ranked_seed_pages = sorted(top_seed_pages, reverse=True)
+    ranked_pages = sorted(top_ranked_pages, reverse=True)
+    db.close()
+    return [(doc_id, page_name, score) for score, doc_id, page_name in ranked_pages]
+
+
+def getCandiadatePages(search_query: str) -> dict[int, list[int]]:
+    db = Database()
+    ranked_seed_pages = [
+        (score, doc_id)
+        for doc_id, _, score in getTopRankedPages(search_query)
+    ]
     tf_idf_mult = {
         doc_id: score
         for score, doc_id in ranked_seed_pages
@@ -142,15 +160,17 @@ def getCandiadatePages(search_query: str) -> dict[int, list[int]]:
         }
 
     if not tf_idf_mult:
+        db.close()
         return {}, {}
 
-    seed_doc_ids = ",".join(str(doc_id) for _, doc_id in ranked_seed_pages)
+    seed_doc_ids = [doc_id for _, doc_id in ranked_seed_pages]
+    placeholders = ",".join("?" for _ in seed_doc_ids)
     link_query = f"""
         SELECT DISTINCT
             l.doc_id,
             l.link_id
         FROM {LINKS_TABLE} l
-        WHERE l.doc_id IN ({seed_doc_ids})
+        WHERE l.doc_id IN ({placeholders})
 
         UNION
 
@@ -158,10 +178,11 @@ def getCandiadatePages(search_query: str) -> dict[int, list[int]]:
             l.doc_id,
             l.link_id
         FROM {LINKS_TABLE} l
-        WHERE l.link_id IN ({seed_doc_ids})
+        WHERE l.link_id IN ({placeholders})
     """
 
-    res = db.executeQuery(link_query)
+    res = db.execute_query(link_query, tuple(seed_doc_ids + seed_doc_ids))
+    db.close()
 
     base_set = {}
     for doc_id, link_id in res:

@@ -1,6 +1,7 @@
 import os
 import bz2
 import time
+import hashlib
 import requests
 
 from tqdm import tqdm
@@ -29,6 +30,16 @@ def get_page_aspect(soup: BeautifulSoup, tag: str):
     return soup.find_all(tag)
 
 
+def get_dump_file_tags() -> list[tuple[Tag, int]]:
+    page_content = get_page_content()
+    raw_wiki_dump_strings = get_page_aspect(page_content, "pre")
+    cleaned_wiki_dump_strings: list[str] = str(raw_wiki_dump_strings).split("\n")[3:-1]
+    wiki_dump_file_sizes = getFileBytesSize(cleaned_wiki_dump_strings)
+
+    a_tags = get_page_aspect(page_content, "a")
+    bz2_files = [tag for tag in a_tags[3:] if tag.get("href", "").endswith(".bz2")]
+    return list(zip(bz2_files, wiki_dump_file_sizes))
+
 
 def downloadBZ2(bz2_file: Tag, fileSize: int, filepath: str):
     href = bz2_file.get("href")
@@ -41,6 +52,32 @@ def downloadBZ2(bz2_file: Tag, fileSize: int, filepath: str):
         )
         return
 
+
+def streamDownloadBZ2(bz2_file: Tag, fileSize: int = None):
+    href = bz2_file.get("href")
+    if href is None or not href.endswith(".bz2"):
+        return
+
+    link = URL + href
+    bytesDownloaded = 0
+    startTime = time.perf_counter()
+
+    with requests.get(link, stream=True, timeout=TIMEOUT) as response:
+        response.raise_for_status()
+        for chunk in response.iter_content(CHUKN_SIZE):
+            if not chunk:
+                continue
+
+            bytesDownloaded += len(chunk)
+            if fileSize is not None:
+                showProgress(bytesDownloaded, fileSize)
+            yield chunk
+
+    if fileSize is not None and bytesDownloaded < fileSize:
+        showProgress(fileSize, fileSize)
+
+    elapsedTime = time.perf_counter() - startTime
+    print(f"Download took {formatElapsedTime(elapsedTime)}")
 
 
 def downloadSHASums(sha_file: Tag) -> dict[str, str]:
@@ -120,6 +157,7 @@ def downloadLink(link: str, filepath: str, fileSize: int = None):
     bytesDownloaded = 0
     startTime = time.perf_counter()
     with requests.get(link, stream=True, timeout=TIMEOUT) as r:
+        r.raise_for_status()
         with open(filepath, "wb") as f:
             for chunk in r.iter_content(CHUKN_SIZE):
                 if not chunk:
@@ -151,4 +189,3 @@ def unzipFile(filepathToDecompress: str):
     with bz2.open(filepathToDecompress, 'rb') as f_in:
         with open(fileName, 'wb') as f_out:
             f_out.write(f_in.read())
-
